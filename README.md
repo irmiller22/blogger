@@ -33,7 +33,7 @@ production:
   url: <%= ENV["DATABASE_URL"] %>
 ```
 
-The adapter key is set to the database adapter (Postgres, SQLite, MySQL, etc). The other key component is the database key - this should be set to the name of your database (you can choose to call it whatever you'd like).
+Heroku automatically sets up a database for you once you push up to Heroku, and the `DATABASE_URL` config variable is given to you by heroku. So once the Heroku app builds after being deployed, your application will then connect to the database through the `url` key in the `database.yml` file.
 
 ## Rails 12 Factor
 
@@ -201,6 +201,26 @@ To https://git.heroku.com/apple-pie-6732.git
  * [new branch]      heroku-deploy -> master
 ```
 
-Once it has properly deployed, we can then go ab
+Once it has properly deployed, we can then go about starting up the Heroku server.
 
 ## Starting up Heroku
+
+First off, we need to migrate our database on Heroku, and then seed the database (if we have any seeds). 
+
+```bash
+heroku run rake db:migrate
+```
+
+Then, if needed:
+
+```bash
+heroku run rake db:seed
+```
+
+Finally, if everything was done correctly, your app should be all set up. Now let's run `heroku restart` to restart our server, and then you should be good to go!
+
+Run `heroku open` to see your application live!
+
+## Resources
+
+* [Heroku](http://heroku.com/) - [Deploying a Rails Application](https://devcenter.heroku.com/articles/getting-started-with-rails4#deploy-your-application-to-heroku)
