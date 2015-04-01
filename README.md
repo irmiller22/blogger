@@ -30,11 +30,7 @@ end
 ```yaml
 # config/database.yml
 production:
-  adapter: postgresql
-  encoding: unicode
-  pool: 5
-  timeout: 5000
-  database: blogger_production_db
+  url: <%= ENV["DATABASE_URL"] %>
 ```
 
 The adapter key is set to the database adapter (Postgres, SQLite, MySQL, etc). The other key component is the database key - this should be set to the name of your database (you can choose to call it whatever you'd like).
@@ -85,5 +81,126 @@ heroku  https://git.heroku.com/apple-pie-6732.git (push)
 origin  git@github.com:irmiller22/blogger.git (fetch)
 origin  git@github.com:irmiller22/blogger.git (push)
 ```
+
+Now let's push our application to the Heroku server. By default, when the Heroku application push command is invoked, it will push the `master` branch of your Github repository to the Heroku remote. From there, the application will build. So let's push our `master` branch up.
+
+```bash
+git push heroku master
+```
+
+This results in the following:
+
+```bash
+Counting objects: 6, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (6/6), done.
+Writing objects: 100% (6/6), 571 bytes | 0 bytes/s, done.
+Total 6 (delta 3), reused 0 (delta 0)
+To git@github.com:irmiller22/blogger.git
+   6c8676a..85d0b50  heroku-deploy -> heroku-deploy
+[13:52:30] (heroku-deploy) blogger
+✯ git push heroku heroku-deploy:master
+Counting objects: 135, done.
+Delta compression using up to 4 threads.
+Compressing objects: 100% (127/127), done.
+Writing objects: 100% (135/135), 27.16 KiB | 0 bytes/s, done.
+Total 135 (delta 34), reused 0 (delta 0)
+remote: Compressing source files... done.
+remote: Building source:
+remote:
+remote: -----> Ruby app detected
+remote: -----> Compiling Ruby/Rails
+remote: -----> Using Ruby version: ruby-2.2.0
+remote: -----> Installing dependencies using 1.7.12
+remote:        Running: bundle install --without development:test --path vendor/bundle --binstubs vendor/bundle/bin -j4 --deployment
+remote:        Fetching gem metadata from https://rubygems.org/...........
+remote:        Using rake 10.4.2
+remote:        Installing i18n 0.7.0
+remote:        Installing minitest 5.5.1
+remote:        Installing builder 3.2.2
+remote:        Installing thread_safe 0.3.5
+remote:        Installing mini_portile 0.6.2
+remote:        Installing erubis 2.7.0
+remote:        Installing rack 1.6.0
+remote:        Installing mime-types 2.4.3
+remote:        Installing arel 6.0.0
+remote:        Installing coffee-script-source 1.9.1
+remote:        Installing execjs 2.4.0
+remote:        Installing json 1.8.2
+remote:        Installing hike 1.2.3
+remote:        Installing thor 0.19.1
+remote:        Using bundler 1.7.12
+remote:        Installing multi_json 1.11.0
+remote:        Installing tilt 1.4.1
+remote:        Installing rails_stdout_logging 0.0.3
+remote:        Using rdoc 4.2.0
+remote:        Installing rails_serve_static_assets 0.0.4
+remote:        Installing tzinfo 1.2.2
+remote:        Installing sass 3.4.13
+remote:        Installing rack-test 0.6.3
+remote:        Installing mail 2.6.3
+remote:        Installing coffee-script 2.3.0
+remote:        Installing uglifier 2.7.1
+remote:        Installing sprockets 2.12.3
+remote:        Installing sdoc 0.4.1
+remote:        Installing rails_12factor 0.0.3
+remote:        Installing activesupport 4.2.0
+remote:        Installing rails-deprecated_sanitizer 1.0.3
+remote:        Installing globalid 0.3.3
+remote:        Installing activemodel 4.2.0
+remote:        Installing jbuilder 2.2.12
+remote:        Installing activejob 4.2.0
+remote:        Installing activerecord 4.2.0
+remote:        Installing nokogiri 1.6.6.2
+remote:        Installing rails-dom-testing 1.0.6
+remote:        Installing loofah 2.0.1
+remote:        Installing rails-html-sanitizer 1.0.2
+remote:        Installing actionview 4.2.0
+remote:        Installing actionpack 4.2.0
+remote:        Installing actionmailer 4.2.0
+remote:        Installing railties 4.2.0
+remote:        Installing sprockets-rails 2.2.4
+remote:        Installing pg 0.18.1
+remote:        Installing coffee-rails 4.1.0
+remote:        Installing jquery-rails 4.0.3
+remote:        Installing sass-rails 5.0.3
+remote:        Installing rails 4.2.0
+remote:        Installing sprockets_better_errors 0.0.4
+remote:        Installing turbolinks 2.5.3
+remote:        Your bundle is complete!
+remote:        Gems in the groups development and test were not installed.
+remote:        It was installed into ./vendor/bundle
+remote:        Post-install message from sprockets_better_errors:
+remote:        To enable sprockets_better_errors
+remote:        add this line to your config/environments/development.rb:
+remote:        config.assets.raise_production_errors = true
+remote:        Bundle completed (35.92s)
+remote:        Cleaning up the bundler cache.
+remote: -----> Preparing app for Rails asset pipeline
+remote:        Running: rake assets:precompile
+remote:        I, [2015-04-01T17:53:28.659802 #1175]  INFO -- : Writing /tmp/build_d7e9a4b2c801419fa0d11125217b5f9e/public/assets/application-57b2f8ae2b1d6383501ac3ed4b05d1c7.js
+remote:        I, [2015-04-01T17:53:28.714753 #1175]  INFO -- : Writing /tmp/build_d7e9a4b2c801419fa0d11125217b5f9e/public/assets/application-3942007d31710307dd44000cb1f768c9.css
+remote:        Asset precompilation completed (6.65s)
+remote:        Cleaning assets
+remote:        Running: rake assets:clean
+remote:
+remote: ###### WARNING:
+remote:        No Procfile detected, using the default web server (webrick)
+remote:        https://devcenter.heroku.com/articles/ruby-default-web-server
+remote:
+remote: -----> Discovering process types
+remote:        Procfile declares types -> (none)
+remote:        Default types for Ruby  -> console, rake, web, worker
+remote:
+remote: -----> Compressing... done, 29.9MB
+remote: -----> Launching... done, v6
+remote:        https://apple-pie-6732.herokuapp.com/ deployed to Heroku
+remote:
+remote: Verifying deploy... done.
+To https://git.heroku.com/apple-pie-6732.git
+ * [new branch]      heroku-deploy -> master
+```
+
+Once it has properly deployed, we can then go ab
 
 ## Starting up Heroku
