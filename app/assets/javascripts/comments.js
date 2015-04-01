@@ -14,13 +14,13 @@ $(document).ready(function(){
 
   function createComment(){
     var regex = /\d/
-    var post_id = regex.exec( $('#new_comment').attr('action') )
+    var post_id = regex.exec( $('#new_comment').attr('action') );
     var title = ('#comment_title').val();
     var input = $('#comment_body').val();
 
     $.ajax({
       method: "POST",
-      url: "/posts/" + post_id + "comments"
+      url: "/posts/" + post_id + "comments",
       data: { title: title , body: input }
     })
       .done(function(callback){
