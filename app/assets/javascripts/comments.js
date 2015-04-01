@@ -15,7 +15,7 @@ $(document).ready(function(){
   function createComment(){
     var regex = /\d/
     var post_id = regex.exec( $('#new_comment').attr('action') )
-    var title = #('#comment_title').val();
+    var title = ('#comment_title').val();
     var input = $('#comment_body').val();
 
     $.ajax({
