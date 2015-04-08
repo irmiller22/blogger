@@ -1,226 +1,296 @@
-# Heroku Deployment Lab
+# Devise
 
-## Steps
-- [Add postgres configurations to `database.yml`](#postgres)
-- Add `rails_12factor` gem
-- Deploy to Heroku
-- Run migrations, start up dyno
+## Introduction
 
-## Postgres
-- In your Gemfile, you need to namespace a `production` group, so that there will be a set of gems that install only in the production environment.
+This is a step-by-step tutorial on how to integrate Devise into your Rails app. I integrated this into an example application that I have available [here](https://github.com/irmiller22/blogger/tree/integrate-devise). See the commit logs for each step in the integration process.
+
+## Installing the Gem
+
+Add the `devise` gem to your Gemfile, and bundle install. Once you have done so, you should have access to the gem's command line interface.
+
+## Setting up Devise
+
+In order to add in Devise's authentication tools and resources, run `rails g devise:install` in your Terminal. This will bring up the following message:
+
+```
+      create  config/initializers/devise.rb
+      create  config/locales/devise.en.yml
+===============================================================================
+
+Some setup you must do manually if you haven't yet:
+
+  1. Ensure you have defined default url options in your environments files. Here
+     is an example of default_url_options appropriate for a development environment
+     in config/environments/development.rb:
+
+       config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }
+
+     In production, :host should be set to the actual host of your application.
+
+  2. Ensure you have defined root_url to *something* in your config/routes.rb.
+     For example:
+
+       root to: "home#index"
+
+  3. Ensure you have flash messages in app/views/layouts/application.html.erb.
+     For example:
+
+       <p class="notice"><%= notice %></p>
+       <p class="alert"><%= alert %></p>
+
+  4. If you are deploying on Heroku with Rails 3.2 only, you may want to set:
+
+       config.assets.initialize_on_precompile = false
+
+     On config/application.rb forcing your application to not access the DB
+     or load models when precompiling your assets.
+
+  5. You can copy Devise views (for customization) to your app by running:
+
+       rails g devise:views
+
+===============================================================================
+```
+
+These are configurations that you might have to set up if you haven't already. To sum it up: 
+
+- you need to change some configuration settings if you're using a mailer in your application
+- you need a root path set up
+- you need to include flash messages in `application.html.erb`
+- you need to set up asset configurations if you're using Rails 3.2
+- you can copy the default Devise views if you're planning on customizing them
+
+## Generating Users
+
+The next step is to generate a User model via Devise. This will set up all of the user-related pages for authorization, such as user registration, log in, reset password, etc.
+
+We'll run `rails g devise User`. This is like `rails g model User`, except that it also sets up the Devise forms as well as the routes. It will generate the following output in your Terminal:
+
+```
+      invoke  active_record
+      create    db/migrate/20150408135126_devise_create_users.rb
+      create    app/models/user.rb
+      insert    app/models/user.rb
+       route  devise_for :users
+```
+
+Let's migrate the database, and then run `rake routes`. You'll see this output:
+
+```
+ Prefix Verb   URI Pattern                            Controller#Action
+        new_user_session GET    /users/sign_in(.:format)               devise/sessions#new
+            user_session POST   /users/sign_in(.:format)               devise/sessions#create
+    destroy_user_session DELETE /users/sign_out(.:format)              devise/sessions#destroy
+           user_password POST   /users/password(.:format)              devise/passwords#create
+       new_user_password GET    /users/password/new(.:format)          devise/passwords#new
+      edit_user_password GET    /users/password/edit(.:format)         devise/passwords#edit
+                         PATCH  /users/password(.:format)              devise/passwords#update
+                         PUT    /users/password(.:format)              devise/passwords#update
+cancel_user_registration GET    /users/cancel(.:format)                devise/registrations#cancel
+       user_registration POST   /users(.:format)                       devise/registrations#create
+   new_user_registration GET    /users/sign_up(.:format)               devise/registrations#new
+  edit_user_registration GET    /users/edit(.:format)                  devise/registrations#edit
+                         PATCH  /users(.:format)                       devise/registrations#update
+                         PUT    /users(.:format)                       devise/registrations#update
+                         DELETE /users(.:format)                       devise/registrations#destroy
+                         ...
+```
+
+Devise, out of the box, gives you access to three controllers: `sessions`, `passwords`, and `registrations`.
+
+It also gives you access to several helper methods: `user_signed_in?`, `current_user`, and `user_session`.
+
+## Requiring Authorization
+
+In order to require your users to either sign up or sign in before using your application, you need a `before_action` filter to redirect your users to a sign in/sign up page. Devise gives you access to one particular filter.
+
+In your `ApplicationController`, put in this line:
 
 ```ruby
-# Gemfile
-group :production do
+before_action :authenticate_user!
+```
+
+Now when you try to go to any page in your application, it will require you to sign up or sign in.
+
+## Adding Custom Attributes to Sign Up/Sign In Form
+
+What if you wanted to add a `name` attribute to sign up page? There are a couple things that you have to do in order to reflect this addition in your application. In short, you have to re-configure Devise's strong params, generate the standard Devise views in your apps, and make sure that your forms submit properly.
+
+Add this to your `ApplicationController`:
+
+```ruby
+before_action :configure_permitted_parameters, if: :devise_controller?
+
+protected
+
+def configure_permitted_parameters
+  binding.pry
+  devise_parameter_sanitizer.for(:sign_up) << :name
+end
+```
+
+We have the `binding.pry` in there to check and see what's being permitted through the Devise `RegistrationsController`.
+
+Next step is to generate the views so that we can customize them: `rails g devise:views`. This will output the following:
+
+```
+      invoke  Devise::Generators::SharedViewsGenerator
+      create    app/views/devise/shared
+      create    app/views/devise/shared/_links.html.erb
+      invoke  form_for
+      create    app/views/devise/confirmations
+      create    app/views/devise/confirmations/new.html.erb
+      create    app/views/devise/passwords
+      create    app/views/devise/passwords/edit.html.erb
+      create    app/views/devise/passwords/new.html.erb
+      create    app/views/devise/registrations
+      create    app/views/devise/registrations/edit.html.erb
+      create    app/views/devise/registrations/new.html.erb
+      create    app/views/devise/sessions
+      create    app/views/devise/sessions/new.html.erb
+      create    app/views/devise/unlocks
+      create    app/views/devise/unlocks/new.html.erb
+      invoke  erb
+      create    app/views/devise/mailer
+      create    app/views/devise/mailer/confirmation_instructions.html.erb
+      create    app/views/devise/mailer/reset_password_instructions.html.erb
+      create    app/views/devise/mailer/unlock_instructions.html.erb
+```
+
+By default, it'll generate the `confirmations`, `passwords`, `registrations`, `sessions`, and `mailer` views.
+
+The view that we're going to modify is the `registrations/new.html.erb` view, and we're going to add a form field for the `:name` attribute of the User model.
+
+```ruby
+<h2>Sign up</h2>
+
+<%= form_for(resource, as: resource_name, url: registration_path(resource_name)) do |f| %>
+  <%= devise_error_messages! %>
+
+  <div class="field">
+    <%= f.label :name %><br />
+    <%= f.text_field :name, autofocus: true %>
+  </div>
   ...
-end
+<% end %>
 ```
 
-- Let's add the `pg` gem to the Gemfile, since that's what our Heroku server will be using as its primary database.
+Then add this to your `application.html.erb`:
 
 ```ruby
-# Gemfile
-group :production do
-  gem 'pg'
+<body>
+  <% if user_signed_in? %>
+    <%= current_user.name unless current_user.name.nil? %>
+    <%= link_to "Sign Out", destroy_user_session_path, method: :delete %>
+  <% else %>
+    <%= link_to "Sign In", new_user_session_path %>
+  <% end %>
+
+  <%= yield %>
+
+</body>
+```
+
+Now you should be able to sign in and sign out effectively, and see the name attribute pop up after you sign up.
+
+## Omniauth with Devise
+
+First thing we'll do is uncomment out the `config.omniauth` configuration line in the `devise.rb` configuration file for Devise.
+
+The next step is to add the `:omniauthable` module and the `:omniauth_providers` to the User model:
+
+```ruby
+class User < ActiveRecord::Base
+  # Include default devise modules. Others available are:
+  # :confirmable, :lockable, :timeoutable and :omniauthable
+  devise :database_authenticatable, :registerable,
+         :recoverable, :rememberable, :trackable, :validatable, :omniauthable, :omniauth_providers => [:facebook]
 end
 ```
 
-- Let's also set up the `database.yml` configuration file for our database.
+Then the next step is to get your access token and secret from the Facebook App Development page, available at: https://developers.facebook.com/apps/. I installed the `figaro` gem, and put these into my `application.yml` file:
 
 ```yaml
-# config/database.yml
-production:
-  url: <%= ENV["DATABASE_URL"] %>
+facebook_app_id: ...
+facebook_app_secret: ...
 ```
 
-Heroku automatically sets up a database for you once you push up to Heroku, and the `DATABASE_URL` config variable is given to you by heroku. So once the Heroku app builds after being deployed, your application will then connect to the database through the `url` key in the `database.yml` file.
-
-## Rails 12 Factor
-
-What is [`12 Factor`](https://github.com/heroku/rails_12factor)? It's a [set of guidelines](http://12factor.net/) that provides a framework for a methodology of building well-designed and built software applications. A 12 factor app does the following things:
-
-- Use declarative formats for setup automation, to minimize time and cost for new developers joining the project;
-- Have a clean contract with the underlying operating system, offering maximum portability between execution environments;
-- Are suitable for deployment on modern cloud platforms, obviating the need for servers and systems administration;
-- Minimize divergence between development and production, enabling continuous deployment for maximum agility;
-- And can scale up without significant changes to tooling, architecture, or development practices.
-
-The `rails_12factor` gem provides our Heroku production environment with two key components: it enables the serving of assets in a production environment, and it also sets your application logger to `STDOUT`, meaning that your log is output in your server terminal (you can access this via `heroku logs`).
-
-So let's add the `rails_12factor` gem to our production group in the Gemfile:
+Then set up the configurations for these keys in your `devise.rb` file:
 
 ```ruby
-# Gemfile
-group :production do
-  gem 'pg'
-  gem 'rails_12factor'
+config.omniauth :facebook, ENV["facebook_app_id"], ENV["facebook_app_secret"]
+```
+
+Once all of this is set up correctly, you should see this in your routes:
+
+```
+user_omniauth_authorize GET|POST /users/auth/:provider(.:format)        devise/omniauth_callbacks#passthru {:provider=>/facebook/}
+  user_omniauth_callback GET|POST /users/auth/:action/callback(.:format) devise/omniauth_callbacks#:action
+```
+
+Let's add the following to the `application.html.erb` file, and try clicking on it:
+
+```
+<%= link_to 'Sign in with Facebook', user_omniauth_authorize_path(:facebook) %>
+```
+
+Assuming we have the Oauth configurations set up in our Facebook app (see more [here](http://stackoverflow.com/questions/20910576/how-can-i-add-localhost3000-to-facebook-app-for-development)), it'll redirect to Facebook and ask for permission to use data from your Facebook profile.
+
+The next step is to set up an Omniauth Callbacks controller.
+
+We need to add this to our routes, so that Devise knows how to handle callbacks from Omniauth:
+
+```ruby
+devise_for :users, :controllers => { :omniauth_callbacks => "users/omniauth_callbacks" }
+```
+
+Then we'll create the actual controller itself.
+
+```ruby
+# app/controllers/users/omniauth_callbacks_controller.rb
+
+class Users::OmniauthCallbacksController < Devise::OmniauthCallbacksController
 end
 ```
 
-## Deploying to Heroku
+Then let's add a `facebook` method to handle the Omniauth callback from Facebook:
 
-So now that we have the gems and the database configurations set up in our application, it's now time to start the Heroku deployment process. Let's create a new heroku application from our command line:
+```ruby
+class Users::OmniauthCallbacksController < Devise::OmniauthCallbacksController
+  def facebook
+    # You need to implement the method below in your model (e.g. app/models/user.rb)
+    @user = User.from_omniauth(request.env["omniauth.auth"])
 
-```bash
-heroku create
+    if @user.persisted?
+      sign_in_and_redirect @user, :event => :authentication #this will throw if @user is not activated
+      set_flash_message(:notice, :success, :kind => "Facebook") if is_navigational_format?
+    else
+      session["devise.facebook_data"] = request.env["omniauth.auth"]
+      redirect_to new_user_registration_url
+    end
+  end
+end
 ```
 
-This will create an application for you on Heroku. The output will look something like this:
+Then the last step is to build out the `from_omniauth` method in the User model.
 
-```bash
-Creating apple-pie-6732... done, stack is cedar-14
-https://apple-pie-6732.herokuapp.com/ | https://git.heroku.com/apple-pie-6732.git
-Git remote heroku added
+```ruby
+  class User < ActiveRecord::Base
+    def self.from_omniauth(auth)
+      where(provider: auth.provider, uid: auth.uid).first_or_create do |user|
+        user.provider = auth.provider
+        user.uid = auth.uid
+        user.email = auth.info.email
+        user.password = Devise.friendly_token[0,20]
+      end
+    end
+  end
 ```
 
-This will give you a new application on Heroku. This also gives you a remote that is called `heroku`. For example, when I run `git remote -v`, this is the output I'd get:
-
-```bash
-heroku  https://git.heroku.com/apple-pie-6732.git (fetch)
-heroku  https://git.heroku.com/apple-pie-6732.git (push)
-origin  git@github.com:irmiller22/blogger.git (fetch)
-origin  git@github.com:irmiller22/blogger.git (push)
-```
-
-Now let's push our application to the Heroku server. By default, when the Heroku application push command is invoked, it will push the `master` branch of your Github repository to the Heroku remote. From there, the application will build. So let's push our `master` branch up.
-
-```bash
-git push heroku master
-```
-
-This results in the following:
-
-```bash
-Counting objects: 6, done.
-Delta compression using up to 4 threads.
-Compressing objects: 100% (6/6), done.
-Writing objects: 100% (6/6), 571 bytes | 0 bytes/s, done.
-Total 6 (delta 3), reused 0 (delta 0)
-To git@github.com:irmiller22/blogger.git
-   6c8676a..85d0b50  heroku-deploy -> heroku-deploy
-[13:52:30] (heroku-deploy) blogger
-✯ git push heroku heroku-deploy:master
-Counting objects: 135, done.
-Delta compression using up to 4 threads.
-Compressing objects: 100% (127/127), done.
-Writing objects: 100% (135/135), 27.16 KiB | 0 bytes/s, done.
-Total 135 (delta 34), reused 0 (delta 0)
-remote: Compressing source files... done.
-remote: Building source:
-remote:
-remote: -----> Ruby app detected
-remote: -----> Compiling Ruby/Rails
-remote: -----> Using Ruby version: ruby-2.2.0
-remote: -----> Installing dependencies using 1.7.12
-remote:        Running: bundle install --without development:test --path vendor/bundle --binstubs vendor/bundle/bin -j4 --deployment
-remote:        Fetching gem metadata from https://rubygems.org/...........
-remote:        Using rake 10.4.2
-remote:        Installing i18n 0.7.0
-remote:        Installing minitest 5.5.1
-remote:        Installing builder 3.2.2
-remote:        Installing thread_safe 0.3.5
-remote:        Installing mini_portile 0.6.2
-remote:        Installing erubis 2.7.0
-remote:        Installing rack 1.6.0
-remote:        Installing mime-types 2.4.3
-remote:        Installing arel 6.0.0
-remote:        Installing coffee-script-source 1.9.1
-remote:        Installing execjs 2.4.0
-remote:        Installing json 1.8.2
-remote:        Installing hike 1.2.3
-remote:        Installing thor 0.19.1
-remote:        Using bundler 1.7.12
-remote:        Installing multi_json 1.11.0
-remote:        Installing tilt 1.4.1
-remote:        Installing rails_stdout_logging 0.0.3
-remote:        Using rdoc 4.2.0
-remote:        Installing rails_serve_static_assets 0.0.4
-remote:        Installing tzinfo 1.2.2
-remote:        Installing sass 3.4.13
-remote:        Installing rack-test 0.6.3
-remote:        Installing mail 2.6.3
-remote:        Installing coffee-script 2.3.0
-remote:        Installing uglifier 2.7.1
-remote:        Installing sprockets 2.12.3
-remote:        Installing sdoc 0.4.1
-remote:        Installing rails_12factor 0.0.3
-remote:        Installing activesupport 4.2.0
-remote:        Installing rails-deprecated_sanitizer 1.0.3
-remote:        Installing globalid 0.3.3
-remote:        Installing activemodel 4.2.0
-remote:        Installing jbuilder 2.2.12
-remote:        Installing activejob 4.2.0
-remote:        Installing activerecord 4.2.0
-remote:        Installing nokogiri 1.6.6.2
-remote:        Installing rails-dom-testing 1.0.6
-remote:        Installing loofah 2.0.1
-remote:        Installing rails-html-sanitizer 1.0.2
-remote:        Installing actionview 4.2.0
-remote:        Installing actionpack 4.2.0
-remote:        Installing actionmailer 4.2.0
-remote:        Installing railties 4.2.0
-remote:        Installing sprockets-rails 2.2.4
-remote:        Installing pg 0.18.1
-remote:        Installing coffee-rails 4.1.0
-remote:        Installing jquery-rails 4.0.3
-remote:        Installing sass-rails 5.0.3
-remote:        Installing rails 4.2.0
-remote:        Installing sprockets_better_errors 0.0.4
-remote:        Installing turbolinks 2.5.3
-remote:        Your bundle is complete!
-remote:        Gems in the groups development and test were not installed.
-remote:        It was installed into ./vendor/bundle
-remote:        Post-install message from sprockets_better_errors:
-remote:        To enable sprockets_better_errors
-remote:        add this line to your config/environments/development.rb:
-remote:        config.assets.raise_production_errors = true
-remote:        Bundle completed (35.92s)
-remote:        Cleaning up the bundler cache.
-remote: -----> Preparing app for Rails asset pipeline
-remote:        Running: rake assets:precompile
-remote:        I, [2015-04-01T17:53:28.659802 #1175]  INFO -- : Writing /tmp/build_d7e9a4b2c801419fa0d11125217b5f9e/public/assets/application-57b2f8ae2b1d6383501ac3ed4b05d1c7.js
-remote:        I, [2015-04-01T17:53:28.714753 #1175]  INFO -- : Writing /tmp/build_d7e9a4b2c801419fa0d11125217b5f9e/public/assets/application-3942007d31710307dd44000cb1f768c9.css
-remote:        Asset precompilation completed (6.65s)
-remote:        Cleaning assets
-remote:        Running: rake assets:clean
-remote:
-remote: ###### WARNING:
-remote:        No Procfile detected, using the default web server (webrick)
-remote:        https://devcenter.heroku.com/articles/ruby-default-web-server
-remote:
-remote: -----> Discovering process types
-remote:        Procfile declares types -> (none)
-remote:        Default types for Ruby  -> console, rake, web, worker
-remote:
-remote: -----> Compressing... done, 29.9MB
-remote: -----> Launching... done, v6
-remote:        https://apple-pie-6732.herokuapp.com/ deployed to Heroku
-remote:
-remote: Verifying deploy... done.
-To https://git.heroku.com/apple-pie-6732.git
- * [new branch]      heroku-deploy -> master
-```
-
-Once it has properly deployed, we can then go about starting up the Heroku server.
-
-## Starting up Heroku
-
-First off, we need to migrate our database on Heroku, and then seed the database (if we have any seeds). 
-
-```bash
-heroku run rake db:migrate
-```
-
-Then, if needed:
-
-```bash
-heroku run rake db:seed
-```
-
-Finally, if everything was done correctly, your app should be all set up. Now let's run `heroku restart` to restart our server, and then you should be good to go!
-
-Run `heroku open` to see your application live!
+Then it should be good to go!
 
 ## Resources
 
-* [Heroku](http://heroku.com/) - [Deploying a Rails Application](https://devcenter.heroku.com/articles/getting-started-with-rails4#deploy-your-application-to-heroku)
+- [Devise Documentation](https://github.com/plataformatec/devise)
+- [DigitalOcean](https://www.digitalocean.com/) - [Setting Up Devise](https://www.digitalocean.com/community/tutorials/how-to-configure-devise-and-omniauth-for-your-rails-application)
+- [Github](http://www.github.com/) - [Omniauth-Facebook](https://github.com/mkdynamic/omniauth-facebook)
