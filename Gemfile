@@ -11,16 +11,13 @@ gem 'jbuilder', '~> 2.0'
 gem 'sdoc', '~> 0.4.0', group: :doc
 
 group :development, :test do
+  gem 'rspec-rails'
+  gem 'factory_girl_rails'
+  gem 'database_cleaner'
   gem 'sqlite3'
   gem 'pry-rails'
   gem 'web-console', '~> 2.0'
   gem 'spring'
-end
-
-group :test do
-  gem 'rspec-rails'
-  gem 'factory_girl_rails'
-  gem 'database_cleaner'
 end
 
 group :production do
