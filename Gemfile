@@ -12,6 +12,8 @@ gem 'sdoc', '~> 0.4.0', group: :doc
 
 # Integrated Gems
 gem 'devise'
+gem 'figaro'
+gem 'omniauth-facebook'
 
 group :development, :test do
   gem 'sqlite3'
