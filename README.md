@@ -31,12 +31,14 @@ Let's go ahead and include `rspec-rails`, `factory_girl_rails`, and `database_cl
 ```ruby
 # Gemfile
 
-group :test do
+group :test, :development do
   gem 'rspec-rails'
   gem 'factory_girl_rails'
   gem 'database_cleaner'
 end
 ```
+
+If you put the `factory_girl_rails` gem only in the `:test` group and not the `:development` group as well, then the factories will not automatically be generated when a model spec is generated.
 
 After we've run `bundle install`, lets go ahead and generate the RSpec resources. Run `rails g rspec:install`. You'll see the following output:
 
@@ -47,42 +49,71 @@ After we've run `bundle install`, lets go ahead and generate the RSpec resources
       create  spec/rails_helper.rb
 ```
 
-Then the next step is to add some configurations for FactoryGirl and DatabaseCleaner into our `spec_helper.rb` file. 
+Then the next step is to add some configurations for FactoryGirl and DatabaseCleaner into our `rails_helper.rb` file. 
 
 ```ruby
-# spec/spec_helper.rb
+# spec/rails_helper.rb
+
+ENV['RAILS_ENV'] ||= 'test'
+require 'spec_helper'
+require File.expand_path('../../config/environment', __FILE__)
+require 'rspec/rails'
+
+ActiveRecord::Migration.maintain_test_schema!
 
 RSpec.configure do |config|
-  config.expect_with :rspec do |expectations|
-    expectations.include_chain_clauses_in_custom_matcher_descriptions = true
-  end
+  # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
+  config.fixture_path = "#{::Rails.root}/spec/fixtures"
 
-  config.mock_with :rspec do |mocks|
-    # Prevents you from mocking or stubbing a method that does not exist on
-    # a real object. This is generally recommended, and will default to
-    # `true` in RSpec 4.
-    mocks.verify_partial_doubles = true
-  end
+  config.use_transactional_fixtures = false
 
   config.include FactoryGirl::Syntax::Methods
+
   config.before(:suite) do
-    DatabaseCleaner.strategy = :transaction
     DatabaseCleaner.clean_with(:truncation)
   end
 
-  config.around(:each) do |example|
-    DatabaseCleaner.cleaning do
-      example.run
-    end
+  config.before(:each) do
+    DatabaseCleaner.strategy = :transaction
+    DatabaseCleaner.start
   end
+
+  config.before(:each, :js => true) do
+    DatabaseCleaner.strategy = :truncation
+  end
+
+  config.after(:each) do
+    DatabaseCleaner.clean
+  end
+
+  config.infer_spec_type_from_file_location!
 end
+
 ```
 
 The `FactoryGirl::Syntax::Methods` configuration allows you to just write `create(:factory)` instead of `FactoryGirl.create(:factory)` inside of a spec. 
 
 The `DatabaseCleaner` configuration ensures that you're cleaning out examples made for each test, so that you don't risk contaminating other fixtures created for other tests. This ensures that there is a clean database slate for each test that is run in a suite.
 
+Now let's go ahead and generate our RSpec tests for our Post and Comment models. Run the following commands in your Terminal: `rails g rspec:model Post` and `rails g rspec:model Comment`. You'll see the following output:
 
+```
+rails g rspec:model Post
+      create  spec/models/post_spec.rb
+      invoke  factory_girl
+      create    spec/factories/posts.rb
+
+rails g rspec:model Comment
+      create  spec/models/comment_spec.rb
+      invoke  factory_girl
+      create    spec/factories/comments.rb
+```
+
+Now we've got our test environment set up.
+
+## Writing Tests
+
+Let's go ahead and start writing out tests for our Post model.
 
 ## Resources
 
