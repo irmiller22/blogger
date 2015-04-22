@@ -1,31 +1,38 @@
-<p id="notice"><%= notice %></p>
 
-<p>
-  <strong>Name:</strong>
-  <%= @post.name %>
-</p>
+<div class="col-md-6 col-md-offset-3">
+  <p id="notice"><%= notice %></p>
 
-<p>
-  <strong>Content:</strong>
-  <%= @post.content %>
-</p>
+  <ol class="breadcrumb">
+    <li><%= link_to 'Index', root_path %></li>
+    <li><%= link_to 'Current Post', post_path(@post) %></li>
+    <li><%= link_to 'Edit', edit_post_path(@post) %></li>
+  </ol>
 
-<% unless @post.comments.empty? %>
-<ul>
-  <% @post.comments.each do |comment| %>
-    <li><%= comment.body %> | <%= link_to "Destroy", post_comment_path(@post, comment), method: :delete %></li>
-  <% end %>
-</ul>
-<% end %>
+  <div class="panel panel-default">
+    <div class="panel-heading">
+      <h3 class="panel-title"><%= @post.name %></h3>
+    </div>
+    <div class="panel-body">
+      <%= @post.content %>
+    </div>
 
-<%= form_for([@post, @comment]) do |f| %>
-  <%= f.hidden_field :title, value: @post.name %>
+    <% unless @post.comments.empty? %>
+        <% @post.comments.each do |comment| %>
+        <div class="list-group">
+          <a href="#" class="list-group-item">
+            <h4 class="list-group-item-heading"><%= comment.body %></h4>
+          </a>
+        </div>
+        <% end %>
+    <% end %>
 
-  <%= f.label :body %>
-  <%= f.text_field :body %><br>
+    <div class="panel-footer">
+      <%= form_for([@post, @comment]) do |f| %>
+        <%= f.hidden_field :title, value: @post.name %>
 
-  <%= f.submit "Create Comment" %>
-<% end %>
-
-<%= link_to 'Edit', edit_post_path(@post) %> |
-<%= link_to 'Back', posts_path %>
+        <%= f.text_field :body, autofocus: true, class: 'form-control', placeholder: "Create a Comment..." %>
+        <%= f.submit "Create Comment", class: 'form-control' %>
+      <% end %>
+    </div>
+  </div>
+</div>

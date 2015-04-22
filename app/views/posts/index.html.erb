@@ -5,7 +5,7 @@
     <% @posts.each do |post| %>
       <div class="col-sm-6 col-md-4">
         <div class="thumbnail">
-          <%= image_tag("http://placehold.it/242x200", size: "242x200") %>
+          <%= image_tag("https://s3.amazonaws.com/archaic-positives/blog_#{post.id + 1}.jpg", size: "242x200") %>
           <div class="caption">
             <h3><%= post.name %></h3>
             <p><%= post.content %></p>
@@ -17,33 +17,6 @@
           </div>
         </div>
       </div>
+    <% end %>
   </div>
 </div>
-
-<!--
-<table>
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Content</th>
-      <th colspan="3"></th>
-    </tr>
-  </thead>
-
-  <tbody>
-    <%# @posts.each do |post| %>
-      <tr>
-        <td><%# post.name %></td>
-        <td><%# post.content %></td>
-        <td><%# link_to 'Show', post %></td>
-        <td><%# link_to 'Edit', edit_post_path(post) %></td>
-        <td><%# link_to 'Destroy', post, method: :delete, data: { confirm: 'Are you sure?' } %></td>
-      </tr>
-    <% end %>
-  </tbody>
-</table>
-
-<br>
-
-<%# link_to 'New Post', new_post_path %>
- -->
