@@ -4,25 +4,13 @@ tags: rspec, factorygirl
 resources: 2
 ---
 
-# FactoryGirl Introduction
+# Model/Controller Testing
 
-FactoryGirl is a DSL for creating fixtures in your RSpec tests. Why is FactoryGirl a good gem to utilize? The major reason is test maintenance. Over the course of a Rails project, your assumptions about your models is likely to change over time. Let's take an example. What if we had to create normal fixtures/objects in our tests like below?
+## Model Testing
 
-```ruby
-before(:each) do
-  product = Product.create(name: "Nerf Gun", type: "weapon", age: "13 and above")
-end
-```
+What exactly is a model test? Simply put, it tests everything that's related to an ActiveRecord model object. For example, if we have a `Comment` object, and it has two attributes, `body` and `post_id`, then we need to ensure that a comment's body is always present before being saved, and that there's always a `post_id` present as well. Basically, you're sanitizing your model objects and ensuring that each model object is being saved cleanly to your specifications.
 
-Do you notice anything that would be hard to maintain? What if we changed the `type` attribute to `classification` attribute? If we had to go into every test suite and change that attribute, that would be a massive pain. And that's only for one model fixture/object. You can imagine how time consuming that would be if you had to fix this all across your test suites. It would be nice if we could do something like this:
-
-```ruby
-before(:each) do
-  product = create(:product)
-end
-```
-
-This is essentially what FactoryGirl does.
+First up, some configurations.
 
 ## Setting Up RSpec/FactoryGirl
 
@@ -111,7 +99,7 @@ rails g rspec:model Comment
 
 Now we've got our test environment set up.
 
-## Writing Tests
+## Writing Model Tests
 
 Let's go ahead and start writing out tests for our Post model.
 
@@ -253,7 +241,48 @@ describe Comment, type: :model do
 end
 ```
 
-Pretty nifty resource, eh?
+Now that's it for the model tests. Let's move on to the controller tests.
+
+## Writing Controller Tests
+
+Why is it important to write tests for your controllers? Simply put, they're classes with methods, as well, and it's important to put them on equal footing with other components of your code that are being tested (specifically, your models). Controller tests also run more quickly than feature/integration specs. Also, they're great for identifying bugs that could be controller-related.
+
+### Posts Controller Spec
+
+We're going to work on writing controller tests for `PostsController`. If we take a look at our `PostsController`, we'll notice that there are currently 7 actions inside of that controller. This means that we have 7 high-level items to test for our `PostsController`.
+
+Let's go ahead and set up the structure for our controller tests:
+
+```ruby
+# spec/controllers/posts_controller_spec.rb
+
+require 'rails_helper'
+
+describe PostsController, type: :controller do
+  describe "GET #index" do
+  end
+
+  describe "GET #new" do
+  end
+
+  describe "GET #edit" do
+  end
+
+  describe "GET #show" do
+  end
+
+  describe "POST #create" do
+  end
+
+  describe "PATCH #create" do
+  end
+
+  describe "DELETE #destroy" do
+  end
+end
+```
+
+We've set up the backbone of tests that we will be implementing for the `PostsController`. (CURRENTLY ON PAGE 57)
 
 ## Resources
 

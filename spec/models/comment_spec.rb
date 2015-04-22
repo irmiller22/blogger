@@ -5,6 +5,23 @@ describe Comment, type: :model do
     expect(build(:comment)).to be_valid
   end
 
+  describe 'model validations' do
+    it 'is valid with a title and body' do
+      comment = build(:comment)
+      expect(comment).to be_valid
+    end
+
+    it 'is invalid without a title' do
+      comment = build(:comment, title: nil)
+      expect(comment).to_not be_valid
+    end
+
+    it 'is invalid without a body' do
+      comment = build(:comment, body: nil)
+      expect(comment).to_not be_valid
+    end
+  end
+
   describe 'model attributes' do
     let(:comment) { create(:comment) }
 
