@@ -57,9 +57,33 @@ describe PostsController, type: :controller do
   end
 
   describe "POST #create" do
+    context 'with valid attributes' do
+      it 'saves the new post in the database' do
+        expect { post :create, post: attributes_for(:post)
+          }.to change(Post, :count).by(1)
+      end
+
+      it 'redirects to the post show page' do
+        post :create, post: attributes_for(:post)
+        expect(response).to redirect_to(post_path(assigns(:post)))
+      end
+    end
+
+    context 'with invalid attributes' do
+      it 'does not save the new post to the database' do
+        expect { post :create, post: attributes_for(:invalid_post)
+          }.to_not change(Post, :count)
+      end
+
+      it 're-renders the :new template' do
+        post :create, post: attributes_for(:invalid_post)
+        expect(response).to render_template(:new)
+      end
+    end
   end
 
   describe "PATCH #update" do
+    let!(:post) { create(:post) }
   end
 
   describe "DELETE #destroy" do

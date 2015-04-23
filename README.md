@@ -320,7 +320,63 @@ describe "GET #index" do
 end
 ```
 
-Now we're checking to make sure that the response is rendering the correct template, and we're also checking to make sure that the controller is assigning `@posts` to an array of all of the posts we mocked in our controller test (`post_1` and `post_2`).
+Now we're checking to make sure that the response is rendering the correct template, and we're also checking to make sure that the controller is assigning `@posts` to an array of all of the posts we mocked in our controller test (`post_1` and `post_2`). The process is similar for all other get requests, plus or minus a few assumptions.
+
+The next step is to test the `POST #create` action. Let's go ahead and set that up now.
+
+```ruby
+describe "POST #create" do
+  context 'with valid attributes' do
+    it 'saves the new post in the database' do
+      ...
+    end
+
+    it 'redirects to the post show page' do
+      ...
+    end
+  end
+
+  context 'with invalid attributes' do
+    it 'does not save the new post to the database' do
+      ...
+    end
+
+    it 're-renders the :new template' do
+      ...
+    end
+  end
+end
+```
+
+Here, we're testing for 2 main things: that an item is persisted to the database, and also that it redirects to the show page for the post once an object has successfully been created. We're also testing both the happy path and the sad path (`valid attributes` vs `invalid attributes`). We've added a new factory, called `invalid_post` into our post factory. Now let's flesh out the code.
+
+```ruby
+describe "POST #create" do
+  context 'with valid attributes' do
+    it 'saves the new post in the database' do
+      expect { post :create, post: attributes_for(:post)
+        }.to change(Post, :count).by(1)
+    end
+
+    it 'redirects to the post show page' do
+      post :create, post: attributes_for(:post)
+      expect(response).to redirect_to(post_path(assigns(:post)))
+    end
+  end
+
+  context 'with invalid attributes' do
+    it 'does not save the new post to the database' do
+      expect { post :create, post: attributes_for(:invalid_post)
+        }.to_not change(Post, :count)
+    end
+
+    it 're-renders the :new template' do
+      post :create, post: attributes_for(:invalid_post)
+      expect(response).to render_template(:new)
+    end
+  end
+end
+```
 
 ## Resources
 
