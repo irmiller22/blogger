@@ -274,7 +274,7 @@ describe PostsController, type: :controller do
   describe "POST #create" do
   end
 
-  describe "PATCH #create" do
+  describe "PATCH #update" do
   end
 
   describe "DELETE #destroy" do
@@ -282,7 +282,45 @@ describe PostsController, type: :controller do
 end
 ```
 
-We've set up the backbone of tests that we will be implementing for the `PostsController`. (CURRENTLY ON PAGE 57)
+We've set up the backbone of tests that we will be implementing for the `PostsController`. We'll walk through how to set up the tests for the `index` action, `create` action, and finally the `destroy` action.
+
+So let's set up the tests for the `index` action:
+
+```ruby
+describe "GET #index" do
+  let!(:post_1) { create(:post) }
+  let!(:post_2) { create(:post) }
+
+  it 'renders the :index view' do
+    ...
+  end
+
+  it 'returns all posts' do
+    ...
+  end
+end
+```
+
+We need to check and make sure that the `index` action does two things: it renders the correct view, and also that it returns all of the posts that currently exist. 
+
+```ruby
+describe "GET #index" do
+  let!(:post_1) { create(:post) }
+  let!(:post_2) { create(:post) }
+
+  it 'renders the :index view' do
+    get :index
+    expect(response).to render_template(:index)
+  end
+
+  it 'returns all posts' do
+    get :index
+    expect(assigns(:posts)).to eq([post_1, post_2])
+  end
+end
+```
+
+Now we're checking to make sure that the response is rendering the correct template, and we're also checking to make sure that the controller is assigning `@posts` to an array of all of the posts we mocked in our controller test (`post_1` and `post_2`).
 
 ## Resources
 
