@@ -86,13 +86,49 @@ describe PostsController, type: :controller do
     let!(:post) { create(:post) }
 
     context 'with valid attributes' do
+      it 'locates the correct post' do
+        patch :update, id: post, post: attributes_for(:post)
+        expect(assigns(:post)).to eq(post)
+      end
+
+      it 'updates the correct attribute' do
+        patch :update, id: post, post: attributes_for(:post, name: "Renamed Post!")
+        post.reload
+        expect(post.name).to eq("Renamed Post!")
+      end
+
+      it 're-directs to the correct template' do
+        patch :update, id: post, post: attributes_for(:post)
+        expect(response).to redirect_to(:post)
+      end
     end
 
     context 'with invalid attributes' do
+      it 'does not update the attributes' do
+        patch :update, id: post, post: attributes_for(:invalid_post)
+        post.reload
+        expect(post.name).to eq("Delivering Goods")
+        expect(post.name).to_not eq(nil)
+      end
+
+      it 're-renders the :edit template' do
+        patch :update, id: post, post: attributes_for(:invalid_post)
+        expect(response).to render_template(:edit)
+      end
     end
   end
 
   describe "DELETE #destroy" do
     let!(:post) { create(:post) }
+
+    it 'deletes the post' do
+      expect { delete :destroy, id: post
+        }.to change(Post, :count).by(-1)
+    end
+
+    it 're-directs to the index page' do
+      delete :destroy, id: post
+      expect(response).to redirect_to(posts_path)
+    end
   end
 end
