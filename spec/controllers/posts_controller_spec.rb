@@ -84,8 +84,15 @@ describe PostsController, type: :controller do
 
   describe "PATCH #update" do
     let!(:post) { create(:post) }
+
+    context 'with valid attributes' do
+    end
+
+    context 'with invalid attributes' do
+    end
   end
 
   describe "DELETE #destroy" do
+    let!(:post) { create(:post) }
   end
 end

@@ -378,6 +378,8 @@ describe "POST #create" do
 end
 ```
 
+Let's move on to the `PATCH #update` action.
+
 ## Resources
 
 * [Github](http://github.com/) - [Getting Started with FactoryGirl](https://github.com/thoughtbot/factory_girl/blob/master/GETTING_STARTED.md)
