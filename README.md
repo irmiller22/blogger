@@ -1,226 +1,442 @@
-# Heroku Deployment Lab
+---
+languages: ruby
+tags: rspec, factorygirl
+resources: 2
+---
 
-## Steps
-- [Add postgres configurations to `database.yml`](#postgres)
-- Add `rails_12factor` gem
-- Deploy to Heroku
-- Run migrations, start up dyno
+# Model/Controller Testing
 
-## Postgres
-- In your Gemfile, you need to namespace a `production` group, so that there will be a set of gems that install only in the production environment.
+## Model Testing
+
+What exactly is a model test? Simply put, it tests everything that's related to an ActiveRecord model object. For example, if we have a `Comment` object, and it has two attributes, `body` and `post_id`, then we need to ensure that a comment's body is always present before being saved, and that there's always a `post_id` present as well. Basically, you're sanitizing your model objects and ensuring that each model object is being saved cleanly to your specifications.
+
+First up, some configurations.
+
+## Setting Up RSpec/FactoryGirl
+
+Let's go ahead and include `rspec-rails`, `factory_girl_rails`, and `database_cleaner` in our Gemfile.
 
 ```ruby
 # Gemfile
-group :production do
+
+group :test, :development do
+  gem 'rspec-rails'
+  gem 'factory_girl_rails'
+  gem 'database_cleaner'
+end
+```
+
+If you put the `factory_girl_rails` gem only in the `:test` group and not the `:development` group as well, then the factories will not automatically be generated when a model spec is generated.
+
+After we've run `bundle install`, lets go ahead and generate the RSpec resources. Run `rails g rspec:install`. You'll see the following output:
+
+```
+      create  .rspec
+      create  spec
+      create  spec/spec_helper.rb
+      create  spec/rails_helper.rb
+```
+
+Then the next step is to add some configurations for FactoryGirl and DatabaseCleaner into our `rails_helper.rb` file. 
+
+```ruby
+# spec/rails_helper.rb
+
+ENV['RAILS_ENV'] ||= 'test'
+require 'spec_helper'
+require File.expand_path('../../config/environment', __FILE__)
+require 'rspec/rails'
+
+ActiveRecord::Migration.maintain_test_schema!
+
+RSpec.configure do |config|
+  # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
+  config.fixture_path = "#{::Rails.root}/spec/fixtures"
+
+  config.use_transactional_fixtures = false
+
+  config.include FactoryGirl::Syntax::Methods
+
+  config.before(:suite) do
+    DatabaseCleaner.clean_with(:truncation)
+  end
+
+  config.before(:each) do
+    DatabaseCleaner.strategy = :transaction
+    DatabaseCleaner.start
+  end
+
+  config.before(:each, :js => true) do
+    DatabaseCleaner.strategy = :truncation
+  end
+
+  config.after(:each) do
+    DatabaseCleaner.clean
+  end
+
+  config.infer_spec_type_from_file_location!
+end
+
+```
+
+The `FactoryGirl::Syntax::Methods` configuration allows you to just write `create(:factory)` instead of `FactoryGirl.create(:factory)` inside of a spec. 
+
+The `DatabaseCleaner` configuration ensures that you're cleaning out examples made for each test, so that you don't risk contaminating other fixtures created for other tests. This ensures that there is a clean database slate for each test that is run in a suite.
+
+Now let's go ahead and generate our RSpec tests for our Post and Comment models. Run the following commands in your Terminal: `rails g rspec:model Post` and `rails g rspec:model Comment`. You'll see the following output:
+
+```
+rails g rspec:model Post
+      create  spec/models/post_spec.rb
+      invoke  factory_girl
+      create    spec/factories/posts.rb
+
+rails g rspec:model Comment
+      create  spec/models/comment_spec.rb
+      invoke  factory_girl
+      create    spec/factories/comments.rb
+```
+
+Now we've got our test environment set up.
+
+## Writing Model Tests
+
+Let's go ahead and start writing out tests for our Post model.
+
+```ruby
+# spec/models/post_spec.rb
+
+describe Post, type: :model do
+  it 'has a valid factory' do
+    expect(build(:post)).to be_valid
+  end
+
+  describe 'model validations' do
+  end
+
+  describe 'model attributes' do
+  end
+
+end
+```
+
+Now I've set up a basic spec for our Post model. My first test, `has a valid factory`, is just checking to make sure that our Post factory gets built properly. This test is going to fail - we need to build out the specifications for our Post factory first.
+
+```ruby
+# spec/factories/posts.rb
+
+FactoryGirl.define do
+  factory :post do
+    name { "Name of Post" }
+    content { "Content of Post" }
+  end
+end
+
+```
+
+Post has two attributes: `name` and `content`. In the `spec/factories/posts.rb` file, we're defining a new factory. Inside of our `factory(:post)` block, we're setting the attributes equal to their respective values. In this case, our `name` attribute is equal to "Name of Post", and our `content` attribute is equal to "Content of Post". Now if we run the spec again for our Post model, the first test will pass.
+
+Let's add the rest of the tests for our Post model:
+
+```ruby
+describe Post, type: :model do
   ...
+
+  describe 'model validations' do
+    it 'is valid with a name and content' do
+      post = build(:post)
+      expect(post).to be_valid
+    end
+
+    it 'is invalid without a name' do
+      post = build(:post, name: nil)
+      expect(post).to_not be_valid
+    end
+
+    it 'is invalid without content' do
+      post = build(:post, content: nil)
+      expect(post).to_not be_valid
+    end
+  end
+
+  describe 'model attributes' do
+    let(:post) { create(:post) }
+
+    it 'has a #name attribute' do
+      expect(post.name).to eq("Delivering Goods")
+    end
+
+    it 'has a #content attribute' do
+      expect(post.content).to eq("In order to deliver goods, you should...")
+    end
+  end
+
 end
 ```
 
-- Let's add the `pg` gem to the Gemfile, since that's what our Heroku server will be using as its primary database.
+Notice how I've defined the `post` fixture throughout the Post model tests. In some of the tests, I've built the fixtures just as they're defined in the factories. In the `model validations` section, I've overriden the default value of the `content` attribute in the factory, and assigned a value of `nil`. 
+
+That's it for the Post model.
+
+Now let's move on to the associations test for the Comment  model. We've made an association in our application, which is that a Post has many comments. How can we create a fixture for that association? Normally, that would involve creating two objects separately, and setting the `post` method of the comment object equal to the newly created post object. In FactoryGirl, you can assemble the associations so that whenever a Comment object is built in a spec, it automatically builds an associated Post object.
+
+Let's look at the specs for the Comment model:
 
 ```ruby
-# Gemfile
-group :production do
-  gem 'pg'
+describe Comment, type: :model do
+  ...
+
+  describe 'model attributes' do
+    let(:comment) { create(:comment) }
+
+    it 'has a #title attribute' do
+    end
+
+    it 'has a title equivalent to the associated post #name attribute' do
+    end
+
+    it 'has a #body attribute' do
+    end
+  end
 end
 ```
 
-- Let's also set up the `database.yml` configuration file for our database.
-
-```yaml
-# config/database.yml
-production:
-  url: <%= ENV["DATABASE_URL"] %>
-```
-
-Heroku automatically sets up a database for you once you push up to Heroku, and the `DATABASE_URL` config variable is given to you by heroku. So once the Heroku app builds after being deployed, your application will then connect to the database through the `url` key in the `database.yml` file.
-
-## Rails 12 Factor
-
-What is [`12 Factor`](https://github.com/heroku/rails_12factor)? It's a [set of guidelines](http://12factor.net/) that provides a framework for a methodology of building well-designed and built software applications. A 12 factor app does the following things:
-
-- Use declarative formats for setup automation, to minimize time and cost for new developers joining the project;
-- Have a clean contract with the underlying operating system, offering maximum portability between execution environments;
-- Are suitable for deployment on modern cloud platforms, obviating the need for servers and systems administration;
-- Minimize divergence between development and production, enabling continuous deployment for maximum agility;
-- And can scale up without significant changes to tooling, architecture, or development practices.
-
-The `rails_12factor` gem provides our Heroku production environment with two key components: it enables the serving of assets in a production environment, and it also sets your application logger to `STDOUT`, meaning that your log is output in your server terminal (you can access this via `heroku logs`).
-
-So let's add the `rails_12factor` gem to our production group in the Gemfile:
+Now let's set up the factory:
 
 ```ruby
-# Gemfile
-group :production do
-  gem 'pg'
-  gem 'rails_12factor'
+FactoryGirl.define do
+  factory :comment do
+    post
+    title { post.name }
+    body { "The delivery man broke my jar of cookies." }
+  end
 end
 ```
 
-## Deploying to Heroku
+Whenever a Comment factory is invoked in a spec, then it's going to automatically create a new Post factory, assuming that a factory for a Post already exists.
 
-So now that we have the gems and the database configurations set up in our application, it's now time to start the Heroku deployment process. Let's create a new heroku application from our command line:
+Let's build out the rest of the specs:
 
-```bash
-heroku create
+```ruby
+describe Comment, type: :model do
+  it 'has a valid factory' do
+    expect(build(:comment)).to be_valid
+  end
+
+  describe 'model attributes' do
+    let(:comment) { create(:comment) }
+
+    it 'has a #title attribute' do
+      expect(comment.title).to eq("Delivering Goods")
+    end
+
+    it 'has a title equivalent to the associated post #name attribute' do
+      expect(comment.title).to eq(comment.post.name)
+    end
+
+    it 'has a #body attribute' do
+      expect(comment.body).to eq("The delivery man broke my jar of cookies.")
+    end
+  end
+end
 ```
 
-This will create an application for you on Heroku. The output will look something like this:
+Now that's it for the model tests. Let's move on to the controller tests.
 
-```bash
-Creating apple-pie-6732... done, stack is cedar-14
-https://apple-pie-6732.herokuapp.com/ | https://git.heroku.com/apple-pie-6732.git
-Git remote heroku added
+## Writing Controller Tests
+
+Why is it important to write tests for your controllers? Simply put, they're classes with methods, as well, and it's important to put them on equal footing with other components of your code that are being tested (specifically, your models). Controller tests also run more quickly than feature/integration specs. Also, they're great for identifying bugs that could be controller-related.
+
+### Posts Controller Spec
+
+We're going to work on writing controller tests for `PostsController`. If we take a look at our `PostsController`, we'll notice that there are currently 7 actions inside of that controller. This means that we have 7 high-level items to test for our `PostsController`.
+
+Let's go ahead and set up the structure for our controller tests:
+
+```ruby
+# spec/controllers/posts_controller_spec.rb
+
+require 'rails_helper'
+
+describe PostsController, type: :controller do
+  describe "GET #index" do
+  end
+
+  describe "GET #new" do
+  end
+
+  describe "GET #edit" do
+  end
+
+  describe "GET #show" do
+  end
+
+  describe "POST #create" do
+  end
+
+  describe "PATCH #update" do
+  end
+
+  describe "DELETE #destroy" do
+  end
+end
 ```
 
-This will give you a new application on Heroku. This also gives you a remote that is called `heroku`. For example, when I run `git remote -v`, this is the output I'd get:
+We've set up the backbone of tests that we will be implementing for the `PostsController`. We'll walk through how to set up the tests for the `index` action, `create` action, and finally the `destroy` action.
 
-```bash
-heroku  https://git.heroku.com/apple-pie-6732.git (fetch)
-heroku  https://git.heroku.com/apple-pie-6732.git (push)
-origin  git@github.com:irmiller22/blogger.git (fetch)
-origin  git@github.com:irmiller22/blogger.git (push)
+So let's set up the tests for the `index` action:
+
+```ruby
+describe "GET #index" do
+  let!(:post_1) { create(:post) }
+  let!(:post_2) { create(:post) }
+
+  it 'renders the :index view' do
+    ...
+  end
+
+  it 'returns all posts' do
+    ...
+  end
+end
 ```
 
-Now let's push our application to the Heroku server. By default, when the Heroku application push command is invoked, it will push the `master` branch of your Github repository to the Heroku remote. From there, the application will build. So let's push our `master` branch up.
+We need to check and make sure that the `index` action does two things: it renders the correct view, and also that it returns all of the posts that currently exist. 
 
-```bash
-git push heroku master
+```ruby
+describe "GET #index" do
+  let!(:post_1) { create(:post) }
+  let!(:post_2) { create(:post) }
+
+  it 'renders the :index view' do
+    get :index
+    expect(response).to render_template(:index)
+  end
+
+  it 'returns all posts' do
+    get :index
+    expect(assigns(:posts)).to eq([post_1, post_2])
+  end
+end
 ```
 
-This results in the following:
+Now we're checking to make sure that the response is rendering the correct template, and we're also checking to make sure that the controller is assigning `@posts` to an array of all of the posts we mocked in our controller test (`post_1` and `post_2`). The process is similar for all other get requests, plus or minus a few assumptions.
 
-```bash
-Counting objects: 6, done.
-Delta compression using up to 4 threads.
-Compressing objects: 100% (6/6), done.
-Writing objects: 100% (6/6), 571 bytes | 0 bytes/s, done.
-Total 6 (delta 3), reused 0 (delta 0)
-To git@github.com:irmiller22/blogger.git
-   6c8676a..85d0b50  heroku-deploy -> heroku-deploy
-[13:52:30] (heroku-deploy) blogger
-✯ git push heroku heroku-deploy:master
-Counting objects: 135, done.
-Delta compression using up to 4 threads.
-Compressing objects: 100% (127/127), done.
-Writing objects: 100% (135/135), 27.16 KiB | 0 bytes/s, done.
-Total 135 (delta 34), reused 0 (delta 0)
-remote: Compressing source files... done.
-remote: Building source:
-remote:
-remote: -----> Ruby app detected
-remote: -----> Compiling Ruby/Rails
-remote: -----> Using Ruby version: ruby-2.2.0
-remote: -----> Installing dependencies using 1.7.12
-remote:        Running: bundle install --without development:test --path vendor/bundle --binstubs vendor/bundle/bin -j4 --deployment
-remote:        Fetching gem metadata from https://rubygems.org/...........
-remote:        Using rake 10.4.2
-remote:        Installing i18n 0.7.0
-remote:        Installing minitest 5.5.1
-remote:        Installing builder 3.2.2
-remote:        Installing thread_safe 0.3.5
-remote:        Installing mini_portile 0.6.2
-remote:        Installing erubis 2.7.0
-remote:        Installing rack 1.6.0
-remote:        Installing mime-types 2.4.3
-remote:        Installing arel 6.0.0
-remote:        Installing coffee-script-source 1.9.1
-remote:        Installing execjs 2.4.0
-remote:        Installing json 1.8.2
-remote:        Installing hike 1.2.3
-remote:        Installing thor 0.19.1
-remote:        Using bundler 1.7.12
-remote:        Installing multi_json 1.11.0
-remote:        Installing tilt 1.4.1
-remote:        Installing rails_stdout_logging 0.0.3
-remote:        Using rdoc 4.2.0
-remote:        Installing rails_serve_static_assets 0.0.4
-remote:        Installing tzinfo 1.2.2
-remote:        Installing sass 3.4.13
-remote:        Installing rack-test 0.6.3
-remote:        Installing mail 2.6.3
-remote:        Installing coffee-script 2.3.0
-remote:        Installing uglifier 2.7.1
-remote:        Installing sprockets 2.12.3
-remote:        Installing sdoc 0.4.1
-remote:        Installing rails_12factor 0.0.3
-remote:        Installing activesupport 4.2.0
-remote:        Installing rails-deprecated_sanitizer 1.0.3
-remote:        Installing globalid 0.3.3
-remote:        Installing activemodel 4.2.0
-remote:        Installing jbuilder 2.2.12
-remote:        Installing activejob 4.2.0
-remote:        Installing activerecord 4.2.0
-remote:        Installing nokogiri 1.6.6.2
-remote:        Installing rails-dom-testing 1.0.6
-remote:        Installing loofah 2.0.1
-remote:        Installing rails-html-sanitizer 1.0.2
-remote:        Installing actionview 4.2.0
-remote:        Installing actionpack 4.2.0
-remote:        Installing actionmailer 4.2.0
-remote:        Installing railties 4.2.0
-remote:        Installing sprockets-rails 2.2.4
-remote:        Installing pg 0.18.1
-remote:        Installing coffee-rails 4.1.0
-remote:        Installing jquery-rails 4.0.3
-remote:        Installing sass-rails 5.0.3
-remote:        Installing rails 4.2.0
-remote:        Installing sprockets_better_errors 0.0.4
-remote:        Installing turbolinks 2.5.3
-remote:        Your bundle is complete!
-remote:        Gems in the groups development and test were not installed.
-remote:        It was installed into ./vendor/bundle
-remote:        Post-install message from sprockets_better_errors:
-remote:        To enable sprockets_better_errors
-remote:        add this line to your config/environments/development.rb:
-remote:        config.assets.raise_production_errors = true
-remote:        Bundle completed (35.92s)
-remote:        Cleaning up the bundler cache.
-remote: -----> Preparing app for Rails asset pipeline
-remote:        Running: rake assets:precompile
-remote:        I, [2015-04-01T17:53:28.659802 #1175]  INFO -- : Writing /tmp/build_d7e9a4b2c801419fa0d11125217b5f9e/public/assets/application-57b2f8ae2b1d6383501ac3ed4b05d1c7.js
-remote:        I, [2015-04-01T17:53:28.714753 #1175]  INFO -- : Writing /tmp/build_d7e9a4b2c801419fa0d11125217b5f9e/public/assets/application-3942007d31710307dd44000cb1f768c9.css
-remote:        Asset precompilation completed (6.65s)
-remote:        Cleaning assets
-remote:        Running: rake assets:clean
-remote:
-remote: ###### WARNING:
-remote:        No Procfile detected, using the default web server (webrick)
-remote:        https://devcenter.heroku.com/articles/ruby-default-web-server
-remote:
-remote: -----> Discovering process types
-remote:        Procfile declares types -> (none)
-remote:        Default types for Ruby  -> console, rake, web, worker
-remote:
-remote: -----> Compressing... done, 29.9MB
-remote: -----> Launching... done, v6
-remote:        https://apple-pie-6732.herokuapp.com/ deployed to Heroku
-remote:
-remote: Verifying deploy... done.
-To https://git.heroku.com/apple-pie-6732.git
- * [new branch]      heroku-deploy -> master
+The next step is to test the `POST #create` action. Let's go ahead and set that up now.
+
+```ruby
+describe "POST #create" do
+  context 'with valid attributes' do
+    it 'saves the new post in the database' do
+      ...
+    end
+
+    it 'redirects to the post show page' do
+      ...
+    end
+  end
+
+  context 'with invalid attributes' do
+    it 'does not save the new post to the database' do
+      ...
+    end
+
+    it 're-renders the :new template' do
+      ...
+    end
+  end
+end
 ```
 
-Once it has properly deployed, we can then go about starting up the Heroku server.
+Here, we're testing for 2 main things: that an item is persisted to the database, and also that it redirects to the show page for the post once an object has successfully been created. We're also testing both the happy path and the sad path (`valid attributes` vs `invalid attributes`). We've added a new factory, called `invalid_post` into our post factory. Now let's flesh out the code.
 
-## Starting up Heroku
+```ruby
+describe "POST #create" do
+  context 'with valid attributes' do
+    it 'saves the new post in the database' do
+      expect { post :create, post: attributes_for(:post)
+        }.to change(Post, :count).by(1)
+    end
 
-First off, we need to migrate our database on Heroku, and then seed the database (if we have any seeds). 
+    it 'redirects to the post show page' do
+      post :create, post: attributes_for(:post)
+      expect(response).to redirect_to(post_path(assigns(:post)))
+    end
+  end
 
-```bash
-heroku run rake db:migrate
+  context 'with invalid attributes' do
+    it 'does not save the new post to the database' do
+      expect { post :create, post: attributes_for(:invalid_post)
+        }.to_not change(Post, :count)
+    end
+
+    it 're-renders the :new template' do
+      post :create, post: attributes_for(:invalid_post)
+      expect(response).to render_template(:new)
+    end
+  end
+end
 ```
 
-Then, if needed:
+Let's move on to the `PATCH #update` action.
 
-```bash
-heroku run rake db:seed
+```ruby
+describe "PATCH #update" do
+  let!(:post) { create(:post) }
+
+  context 'with valid attributes' do
+    it 'locates the correct post' do
+      patch :update, id: post, post: attributes_for(:post)
+      expect(assigns(:post)).to eq(post)
+    end
+
+    it 'updates the correct attribute' do
+      patch :update, id: post, post: attributes_for(:post, name: "Renamed Post!")
+      post.reload
+      expect(post.name).to eq("Renamed Post!")
+    end
+
+    it 're-directs to the correct template' do
+      patch :update, id: post, post: attributes_for(:post)
+      expect(response).to redirect_to(:post)
+    end
+  end
+
+  context 'with invalid attributes' do
+    it 'does not update the attributes' do
+      patch :update, id: post, post: attributes_for(:invalid_post)
+      post.reload
+      expect(post.name).to eq("Delivering Goods")
+      expect(post.name).to_not eq(nil)
+    end
+
+    it 're-renders the :edit template' do
+      patch :update, id: post, post: attributes_for(:invalid_post)
+      expect(response).to render_template(:edit)
+    end
+  end
+end
 ```
 
-Finally, if everything was done correctly, your app should be all set up. Now let's run `heroku restart` to restart our server, and then you should be good to go!
+Now for the `DELETE :destroy` action.
 
-Run `heroku open` to see your application live!
+```ruby
+describe "DELETE #destroy" do
+  let!(:post) { create(:post) }
+
+  it 'deletes the post' do
+    expect { delete :destroy, id: post
+      }.to change(Post, :count).by(-1)
+  end
+
+  it 're-directs to the index page' do
+    delete :destroy, id: post
+    expect(response).to redirect_to(posts_path)
+  end
+end
+```
 
 ## Resources
 
-* [Heroku](http://heroku.com/) - [Deploying a Rails Application](https://devcenter.heroku.com/articles/getting-started-with-rails4#deploy-your-application-to-heroku)
+* [Github](http://github.com/) - [Getting Started with FactoryGirl](https://github.com/thoughtbot/factory_girl/blob/master/GETTING_STARTED.md)
+* [Slideshare](http://www.slideshare.net) - [Not So Brief Intro to FactoryGirl](http://www.slideshare.net/gabevanslv/factory-girl-15924188)
